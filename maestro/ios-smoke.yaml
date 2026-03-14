@@ -1,0 +1,14 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: home-title
+- tapOn:
+    text: Explore
+- assertVisible:
+    id: explore-title
+- tapOn:
+    text: Home
+- assertVisible:
+    id: home-title

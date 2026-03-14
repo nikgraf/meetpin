@@ -1,0 +1,12 @@
+appId: host.exp.Exponent
+---
+- assertVisible:
+    id: home-title
+- tapOn:
+    text: Explore
+- assertVisible:
+    id: explore-title
+- tapOn:
+    text: Home
+- assertVisible:
+    id: home-title

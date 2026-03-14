@@ -1,0 +1,6 @@
+apps/mobile/.expo
+apps/mobile/dist
+apps/mobile/expo-env.d.ts
+coverage
+node_modules
+pnpm-lock.yaml
