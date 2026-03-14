@@ -16,17 +16,13 @@ appId: host.exp.Exponent
     when:
       visible: Open
     commands:
-      - tapOn: Open
-- runFlow:
-    when:
-      visible: Continue
-    commands:
+      - tapOn:
+          text: Open
+      - extendedWaitUntil:
+          visible: Continue
+          timeout: 30000
       - tapOn:
           text: Continue
-- runFlow:
-    when:
-      visible: Close
-    commands:
       - tapOn:
           text: Close
 - extendedWaitUntil:
