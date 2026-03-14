@@ -1,5 +1,47 @@
 appId: host.exp.Exponent
 ---
+- repeat:
+    times: 12
+    while:
+      notVisible:
+        id: home-title
+    commands:
+      - runFlow:
+          when:
+            visible: Open
+          commands:
+            - tapOn:
+                text: Open
+                retryTapIfNoChange: true
+                waitToSettleTimeoutMs: 3000
+      - runFlow:
+          when:
+            visible: meetpin
+          commands:
+            - tapOn:
+                text: meetpin
+                retryTapIfNoChange: true
+                waitToSettleTimeoutMs: 5000
+      - runFlow:
+          when:
+            visible: Continue
+          commands:
+            - tapOn:
+                text: Continue
+                retryTapIfNoChange: true
+                waitToSettleTimeoutMs: 3000
+      - runFlow:
+          when:
+            visible: Close
+          commands:
+            - tapOn:
+                text: Close
+                retryTapIfNoChange: true
+                waitToSettleTimeoutMs: 3000
+- extendedWaitUntil:
+    visible:
+      id: home-title
+    timeout: 120000
 - assertVisible:
     id: home-title
 - tapOn:

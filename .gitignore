@@ -27,6 +27,7 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+expo-ios.log
 
 # macOS
 .DS_Store
@@ -40,6 +41,9 @@ yarn-error.*
 
 app-example
 coverage
+playwright-report
+test-results
+.maestro-debug
 
 # generated native folders
 /ios

@@ -11,6 +11,7 @@ pnpm ios
 pnpm web
 pnpm lint
 pnpm test
+pnpm e2e:playwright
 pnpm verify
 pnpm build:web
 ```

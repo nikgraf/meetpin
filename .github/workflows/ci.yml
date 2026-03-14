@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -27,3 +28,72 @@ jobs:
 
       - name: Run verification checks
         run: pnpm verify
+
+  playwright:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm playwright:install
+
+      - name: Run Playwright E2E tests
+        run: pnpm e2e:playwright
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
+  maestro-ios:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      EXPO_NO_TELEMETRY: "1"
+      MAESTRO_CLI_NO_ANALYTICS: "1"
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Maestro iOS smoke test
+        uses: ./.github/actions/maestro-expo-go-ios
+
+      - name: Upload Maestro iOS debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-ios-debug
+          path: |
+            .maestro-debug
+            expo-ios.log
+          include-hidden-files: true
+          if-no-files-found: ignore
