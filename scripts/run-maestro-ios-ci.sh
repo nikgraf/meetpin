@@ -3,6 +3,10 @@
 set -euo pipefail
 
 LOG_FILE="${LOG_FILE:-expo-ios.log}"
+XCODE_BUILD_DIR="${XCODE_BUILD_DIR:-$PWD/.xcode-build}"
+IOS_PROJECT_DIR="apps/mobile/ios"
+IOS_SCHEME="${IOS_SCHEME:-meetpin}"
+APP_NAME="${APP_NAME:-meetpin}"
 
 if [[ -z "${DEVICE_ID:-}" ]]; then
   echo "DEVICE_ID must be set before running the iOS Maestro CI script." >&2
@@ -68,16 +72,28 @@ RUBY
 
 pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
 (
-  cd apps/mobile/ios
+  cd "${IOS_PROJECT_DIR}"
   pod install
 )
 
-pnpm --filter @meetpin/mobile exec expo run:ios \
-  --configuration Release \
-  --no-install \
-  --no-bundler \
-  --device "${DEVICE_ID}" | tee "${LOG_FILE}"
+echo "Building ${APP_NAME}.app with xcodebuild"
+xcodebuild \
+  -workspace "${IOS_PROJECT_DIR}/${IOS_SCHEME}.xcworkspace" \
+  -scheme "${IOS_SCHEME}" \
+  -configuration Release \
+  -destination "id=${DEVICE_ID}" \
+  -derivedDataPath "${XCODE_BUILD_DIR}" \
+  build | tee "${LOG_FILE}"
 
+APP_PATH="${XCODE_BUILD_DIR}/Build/Products/Release-iphonesimulator/${APP_NAME}.app"
+
+if [[ ! -d "${APP_PATH}" ]]; then
+  echo "Built app not found at ${APP_PATH}" >&2
+  exit 1
+fi
+
+echo "Installing ${APP_PATH}"
+xcrun simctl install "${DEVICE_ID}" "${APP_PATH}"
 xcrun simctl launch "${DEVICE_ID}" "${APP_ID}" || true
 sleep 5
 
