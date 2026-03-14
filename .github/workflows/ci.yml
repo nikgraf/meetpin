@@ -148,7 +148,7 @@ jobs:
           CI=1 \
           EXPO_NO_TELEMETRY=1 \
           REACT_NATIVE_PACKAGER_HOSTNAME="${HOST_IP}" \
-          pnpm --filter @meetpin/mobile exec expo start --ios > expo-ios.log 2>&1 &
+          pnpm --filter @meetpin/mobile exec expo start --go --lan > expo-ios.log 2>&1 &
           EXPO_PID=$!
 
           cleanup() {
@@ -163,10 +163,7 @@ jobs:
           import time
 
           log_path = pathlib.Path("expo-ios.log")
-          patterns = (
-              "Opening exp://",
-              "Logs for your project will appear below.",
-          )
+          patterns = ("Waiting on http://localhost:8081",)
 
           deadline = time.time() + 180
 
@@ -181,6 +178,39 @@ jobs:
               print(log_path.read_text(), file=sys.stderr)
           sys.exit(1)
           PY
+
+          EXPO_GO_APP=$(node --input-type=commonjs - <<'JS' | tail -n 1
+          const { downloadExpoGoAsync } = require('./node_modules/@expo/cli/build/src/utils/downloadExpoGoAsync');
+          const expoVersion = require('./node_modules/expo/package.json').version;
+          const sdkVersion = `${expoVersion.split('.')[0]}.0.0`;
+
+          (async () => {
+            const path = await downloadExpoGoAsync('ios', { sdkVersion });
+            console.log(path);
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          JS
+          )
+
+          echo "Installing Expo Go from ${EXPO_GO_APP}"
+          xcrun simctl install "${DEVICE_ID}" "${EXPO_GO_APP}"
+          xcrun simctl launch "${DEVICE_ID}" host.exp.Exponent || true
+          sleep 5
+
+          for attempt in 1 2 3; do
+            if xcrun simctl openurl "${DEVICE_ID}" "exp://${HOST_IP}:8081"; then
+              break
+            fi
+
+            if [[ "${attempt}" == "3" ]]; then
+              echo "Failed to open the Expo Go URL after ${attempt} attempts." >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
 
           MAESTRO_CLI_NO_ANALYTICS=1 \
           MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
