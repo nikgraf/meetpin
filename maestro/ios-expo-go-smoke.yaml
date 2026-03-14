@@ -18,11 +18,34 @@ appId: host.exp.Exponent
     commands:
       - tapOn:
           text: Open
-      - extendedWaitUntil:
-          visible: Continue
-          timeout: 30000
+- runFlow:
+    when:
+      visible: Continue
+    commands:
       - tapOn:
           text: Continue
+- runFlow:
+    when:
+      visible: Close
+    commands:
+      - tapOn:
+          text: Close
+- runFlow:
+    when:
+      visible: meetpin
+    commands:
+      - tapOn:
+          text: meetpin
+- runFlow:
+    when:
+      visible: Continue
+    commands:
+      - tapOn:
+          text: Continue
+- runFlow:
+    when:
+      visible: Close
+    commands:
       - tapOn:
           text: Close
 - extendedWaitUntil:
