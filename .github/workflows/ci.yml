@@ -86,7 +86,49 @@ jobs:
 
       - name: Boot iOS simulator
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available | grep -m1 -E 'iPhone .+\\([A-F0-9-]+\\)' | sed -E 's/.*\\(([A-F0-9-]+)\\).*/\\1/')
+          DEVICE_ID=$(python3 - <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          data = json.loads(
+              subprocess.check_output(
+                  ['xcrun', 'simctl', 'list', 'devices', 'available', '-j'],
+                  text=True,
+              )
+          )
+
+          candidates = []
+          for runtime, devices in data.get('devices', {}).items():
+              for device in devices:
+                  if not device.get('isAvailable', True):
+                      continue
+                  if not device.get('name', '').startswith('iPhone'):
+                      continue
+
+                  state_rank = 0 if device.get('state') == 'Booted' else 1
+                  runtime_rank = 0 if 'iOS' in runtime else 1
+                  candidates.append(
+                      (
+                          state_rank,
+                          runtime_rank,
+                          runtime,
+                          device['name'],
+                          device['udid'],
+                      )
+                  )
+
+          if not candidates:
+              sys.exit('No available iPhone simulators found')
+
+          candidates.sort()
+          _, _, runtime, name, udid = candidates[0]
+          print(f'Selected simulator: {name} ({runtime})', file=sys.stderr)
+          print(udid)
+          PY
+          )
+
+          echo "Using simulator $DEVICE_ID"
           xcrun simctl boot "$DEVICE_ID" || true
           open -a Simulator
           xcrun simctl bootstatus "$DEVICE_ID" -b
