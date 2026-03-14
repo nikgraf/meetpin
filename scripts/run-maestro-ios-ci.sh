@@ -3,6 +3,7 @@
 set -euo pipefail
 
 LOG_FILE="${LOG_FILE:-expo-ios.log}"
+OPEN_URL_PATTERN='exp://[^[:space:]]+'
 
 cleanup() {
   if [[ -n "${EXPO_PID:-}" ]] && kill -0 "${EXPO_PID}" 2>/dev/null; then
@@ -16,23 +17,41 @@ trap cleanup EXIT
 CI=1 pnpm --filter @meetpin/mobile exec expo start --ios >"${LOG_FILE}" 2>&1 &
 EXPO_PID=$!
 
-for _ in $(seq 1 36); do
-  if grep -q 'Opening exp://' "${LOG_FILE}"; then
-    break
-  fi
+wait_for_log_pattern() {
+  local pattern="$1"
+  local timeout_seconds="$2"
+  local elapsed=0
 
-  if ! kill -0 "${EXPO_PID}" 2>/dev/null; then
-    cat "${LOG_FILE}"
-    exit 1
-  fi
+  while (( elapsed < timeout_seconds )); do
+    if grep -Eq "${pattern}" "${LOG_FILE}"; then
+      return 0
+    fi
 
-  sleep 5
-done
+    if ! kill -0 "${EXPO_PID}" 2>/dev/null; then
+      cat "${LOG_FILE}"
+      exit 1
+    fi
 
-if ! grep -q 'Opening exp://' "${LOG_FILE}"; then
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+
+  cat "${LOG_FILE}"
+  return 1
+}
+
+wait_for_log_pattern "${OPEN_URL_PATTERN}" 180
+EXPO_URL=$(grep -Eo "${OPEN_URL_PATTERN}" "${LOG_FILE}" | tail -n 1)
+
+if [[ -z "${EXPO_URL}" ]]; then
   cat "${LOG_FILE}"
   exit 1
 fi
+
+echo "Using Expo URL ${EXPO_URL}"
+xcrun simctl openurl booted "${EXPO_URL}"
+
+sleep 5
 
 MAESTRO_CLI_NO_ANALYTICS=1 \
 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \

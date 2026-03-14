@@ -1,5 +1,14 @@
 appId: host.exp.Exponent
 ---
+- runFlow:
+    when:
+      visible: Open
+    commands:
+      - tapOn: Open
+- extendedWaitUntil:
+    visible:
+      id: home-title
+    timeout: 120000
 - assertVisible:
     id: home-title
 - tapOn:
