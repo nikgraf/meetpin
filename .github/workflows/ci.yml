@@ -63,6 +63,11 @@ jobs:
 
   maestro-ios:
     runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      EXPO_NO_TELEMETRY: "1"
+      MAESTRO_CLI_NO_ANALYTICS: "1"
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -79,156 +84,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Maestro CLI
-        run: |
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
-
-      - name: Boot iOS simulator
-        run: |
-          DEVICE_ID=$(python3 - <<'PY'
-          import json
-          import subprocess
-          import sys
-
-          data = json.loads(
-              subprocess.check_output(
-                  ['xcrun', 'simctl', 'list', 'devices', 'available', '-j'],
-                  text=True,
-              )
-          )
-
-          candidates = []
-          for runtime, devices in data.get('devices', {}).items():
-              for device in devices:
-                  if not device.get('isAvailable', True):
-                      continue
-                  if not device.get('name', '').startswith('iPhone'):
-                      continue
-
-                  state_rank = 0 if device.get('state') == 'Booted' else 1
-                  runtime_rank = 0 if 'iOS' in runtime else 1
-                  candidates.append(
-                      (
-                          state_rank,
-                          runtime_rank,
-                          runtime,
-                          device['name'],
-                          device['udid'],
-                      )
-                  )
-
-          if not candidates:
-              sys.exit('No available iPhone simulators found')
-
-          candidates.sort()
-          _, _, runtime, name, udid = candidates[0]
-          print(f'Selected simulator: {name} ({runtime})', file=sys.stderr)
-          print(udid)
-          PY
-          )
-
-          echo "Using simulator $DEVICE_ID"
-          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$DEVICE_ID" || true
-          open -a Simulator
-          xcrun simctl bootstatus "$DEVICE_ID" -b
-
       - name: Run Maestro iOS smoke test
-        run: |
-          HOST_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1)
+        uses: ./.github/actions/maestro-expo-go-ios
 
-          if [[ -z "${HOST_IP}" ]]; then
-            echo "Failed to determine a host IP for Metro." >&2
-            exit 1
-          fi
-
-          echo "Using Metro host ${HOST_IP}"
-
-          CI=1 \
-          EXPO_NO_TELEMETRY=1 \
-          REACT_NATIVE_PACKAGER_HOSTNAME="${HOST_IP}" \
-          pnpm --filter @meetpin/mobile exec expo start --go --lan > expo-ios.log 2>&1 &
-          EXPO_PID=$!
-
-          cleanup() {
-            kill "${EXPO_PID}" || true
-          }
-
-          trap cleanup EXIT
-
-          python3 - <<'PY'
-          import pathlib
-          import sys
-          import time
-
-          log_path = pathlib.Path("expo-ios.log")
-          patterns = ("Waiting on http://localhost:8081",)
-
-          deadline = time.time() + 180
-
-          while time.time() < deadline:
-              text = log_path.read_text() if log_path.exists() else ""
-              if all(pattern in text for pattern in patterns):
-                  sys.exit(0)
-              time.sleep(2)
-
-          print("Expo did not finish starting within 180 seconds.", file=sys.stderr)
-          if log_path.exists():
-              print(log_path.read_text(), file=sys.stderr)
-          sys.exit(1)
-          PY
-
-          EXPO_GO_APP=$(node --input-type=commonjs - <<'JS' | tail -n 1
-          const { downloadExpoGoAsync } = require('./node_modules/@expo/cli/build/src/utils/downloadExpoGoAsync');
-          const expoVersion = require('./node_modules/expo/package.json').version;
-          const sdkVersion = `${expoVersion.split('.')[0]}.0.0`;
-
-          (async () => {
-            const path = await downloadExpoGoAsync('ios', { sdkVersion });
-            console.log(path);
-          })().catch((error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          JS
-          )
-
-          echo "Installing Expo Go from ${EXPO_GO_APP}"
-          xcrun simctl install "${DEVICE_ID}" "${EXPO_GO_APP}"
-          xcrun simctl launch "${DEVICE_ID}" host.exp.Exponent || true
-          sleep 5
-
-          for attempt in 1 2 3; do
-            if xcrun simctl openurl "${DEVICE_ID}" "exp://${HOST_IP}:8081"; then
-              break
-            fi
-
-            if [[ "${attempt}" == "3" ]]; then
-              echo "Failed to open the Expo Go URL after ${attempt} attempts." >&2
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-          MAESTRO_CLI_NO_ANALYTICS=1 \
-          MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
-          maestro --platform ios test --debug-output ./.maestro-debug maestro/ios-expo-go-smoke.yaml
-
-      - name: Upload Maestro debug output
+      - name: Upload Maestro iOS debug artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-debug
-          path: .maestro-debug
+          name: maestro-ios-debug
+          path: |
+            .maestro-debug
+            expo-ios.log
           include-hidden-files: true
-          if-no-files-found: ignore
-
-      - name: Upload Expo iOS log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: expo-ios-log
-          path: expo-ios.log
           if-no-files-found: ignore
