@@ -200,6 +200,79 @@ replacements.each do |path, file_replacements|
 end
 RUBY
 
+ruby <<'RUBY'
+expo_image_podspec = 'node_modules/expo-image/ios/ExpoImage.podspec'
+podspec = File.read(expo_image_podspec)
+
+did_replace = podspec.sub!("s.swift_version  = '6.0'", "s.swift_version  = '5.10'")
+raise "Failed to patch #{expo_image_podspec} swift version" unless did_replace
+
+unless podspec.include?("'SWIFT_STRICT_CONCURRENCY' => 'minimal'")
+  did_replace = podspec.sub!(
+    "'DEFINES_MODULE' => 'YES',\n",
+    "'DEFINES_MODULE' => 'YES',\n    'SWIFT_STRICT_CONCURRENCY' => 'minimal',\n"
+  )
+  raise "Failed to patch #{expo_image_podspec} xcconfig" unless did_replace
+end
+
+File.write(expo_image_podspec, podspec)
+RUBY
+
+ruby <<'RUBY'
+replacements = {
+  'node_modules/expo-image/ios/ImageView.swift' => [
+    [
+<<'BEFORE',
+import VisionKit
+BEFORE
+      <<'AFTER'
+@preconcurrency import VisionKit
+AFTER
+    ],
+    [
+<<'BEFORE',
+  @available(iOS 26.0, tvOS 26.0, *)
+  private func applySymbolEffectiOS26(effect: SFSymbolEffectType, scope: SFSymbolEffectScope?, options: SymbolEffectOptions) {
+    switch effect {
+    case .drawOn:
+      switch scope {
+      case .byLayer: sdImageView.addSymbolEffect(.drawOn.byLayer, options: options)
+      case .wholeSymbol: sdImageView.addSymbolEffect(.drawOn.wholeSymbol, options: options)
+      case .none: sdImageView.addSymbolEffect(.drawOn, options: options)
+      }
+    case .drawOff:
+      switch scope {
+      case .byLayer: sdImageView.addSymbolEffect(.drawOff.byLayer, options: options)
+      case .wholeSymbol: sdImageView.addSymbolEffect(.drawOff.wholeSymbol, options: options)
+      case .none: sdImageView.addSymbolEffect(.drawOff, options: options)
+      }
+    default:
+      break
+    }
+  }
+BEFORE
+      <<'AFTER'
+  @available(iOS 26.0, tvOS 26.0, *)
+  private func applySymbolEffectiOS26(effect: SFSymbolEffectType, scope: SFSymbolEffectScope?, options: SymbolEffectOptions) {
+    _ = effect
+    _ = scope
+    _ = options
+  }
+AFTER
+    ]
+  ]
+}
+
+replacements.each do |path, file_replacements|
+  contents = File.read(path)
+  file_replacements.each_with_index do |(before, after), index|
+    did_replace = contents.sub!(before, after)
+    raise "Failed to patch #{path} replacement #{index + 1}" unless did_replace
+  end
+  File.write(path, contents)
+end
+RUBY
+
 pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
 (
   cd "${IOS_PROJECT_DIR}"
