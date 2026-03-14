@@ -41,6 +41,31 @@ end
 File.write(podspec_path, podspec)
 RUBY
 
+ruby <<'RUBY'
+replacements = {
+  'node_modules/expo-modules-core/ios/Core/Views/SwiftUI/SwiftUIHostingView.swift' => {
+    '  public final class HostingView<Props: ViewProps, ContentView: View<Props>>: ExpoView, @MainActor AnyExpoSwiftUIHostingView {' =>
+      "  @MainActor\n  public final class HostingView<Props: ViewProps, ContentView: View<Props>>: ExpoView, AnyExpoSwiftUIHostingView {"
+  },
+  'node_modules/expo-modules-core/ios/Core/Views/SwiftUI/SwiftUIVirtualView.swift' => {
+    'extension ExpoSwiftUI.SwiftUIVirtualView: @MainActor ExpoSwiftUI.ViewWrapper {' =>
+      "@MainActor\nextension ExpoSwiftUI.SwiftUIVirtualView: ExpoSwiftUI.ViewWrapper {"
+  },
+  'node_modules/expo-modules-core/ios/Core/Views/ViewDefinition.swift' => {
+    'extension UIView: @MainActor AnyArgument {' =>
+      "@MainActor\nextension UIView: AnyArgument {"
+  }
+}
+
+replacements.each do |path, file_replacements|
+  contents = File.read(path)
+  file_replacements.each do |before, after|
+    contents.sub!(before, after)
+  end
+  File.write(path, contents)
+end
+RUBY
+
 pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
 (
   cd apps/mobile/ios
