@@ -2,9 +2,33 @@ appId: host.exp.Exponent
 ---
 - runFlow:
     when:
+      visible: Continue
+    commands:
+      - tapOn:
+          text: Continue
+- runFlow:
+    when:
+      visible: Close
+    commands:
+      - tapOn:
+          text: Close
+- runFlow:
+    when:
       visible: Open
     commands:
       - tapOn: Open
+- runFlow:
+    when:
+      visible: Continue
+    commands:
+      - tapOn:
+          text: Continue
+- runFlow:
+    when:
+      visible: Close
+    commands:
+      - tapOn:
+          text: Close
 - extendedWaitUntil:
     visible:
       id: home-title
