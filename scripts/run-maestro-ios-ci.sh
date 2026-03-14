@@ -8,6 +8,17 @@ OPEN_URL_PATTERN='exp://[^[:space:]]+'
 cleanup() {
   if [[ -n "${EXPO_PID:-}" ]] && kill -0 "${EXPO_PID}" 2>/dev/null; then
     kill "${EXPO_PID}" || true
+
+    local remaining=10
+    while (( remaining > 0 )) && kill -0 "${EXPO_PID}" 2>/dev/null; do
+      sleep 1
+      remaining=$((remaining - 1))
+    done
+
+    if kill -0 "${EXPO_PID}" 2>/dev/null; then
+      kill -9 "${EXPO_PID}" || true
+    fi
+
     wait "${EXPO_PID}" || true
   fi
 }
