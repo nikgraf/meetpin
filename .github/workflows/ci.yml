@@ -1,10 +1,12 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches:
       - main
       - develop
+      - setup-ci
 
 jobs:
   verify:
@@ -27,3 +29,84 @@ jobs:
 
       - name: Run verification checks
         run: pnpm verify
+
+  playwright:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm playwright:install
+
+      - name: Run Playwright E2E tests
+        run: pnpm e2e:playwright
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
+  maestro-ios:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Boot iOS simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | grep -m1 -E 'iPhone .+\\([A-F0-9-]+\\)' | sed -E 's/.*\\(([A-F0-9-]+)\\).*/\\1/')
+          xcrun simctl boot "$DEVICE_ID" || true
+          open -a Simulator
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+      - name: Run Maestro iOS smoke test
+        run: bash ./scripts/run-maestro-ios-ci.sh
+
+      - name: Upload Maestro debug output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-debug
+          path: .maestro-debug
+          if-no-files-found: ignore
+
+      - name: Upload Expo iOS log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-ios-log
+          path: expo-ios.log
+          if-no-files-found: ignore
