@@ -14,7 +14,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-CI=1 pnpm --filter @meetpin/mobile exec expo start --ios >"${LOG_FILE}" 2>&1 &
+CI=1 pnpm --filter @meetpin/mobile exec expo start --ios --tunnel >"${LOG_FILE}" 2>&1 &
 EXPO_PID=$!
 
 wait_for_log_pattern() {
