@@ -25,6 +25,9 @@ fi
 
 echo "Building ${APP_ID} for simulator ${DEVICE_ID}"
 
+pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
+pod install --project-directory=apps/mobile/ios
+
 pnpm --filter @meetpin/mobile exec expo run:ios \
   --configuration Release \
   --no-install \
