@@ -1,6 +1,7 @@
 {
   "name": "meetpin-workspace",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "android": "pnpm --filter @meetpin/mobile android",

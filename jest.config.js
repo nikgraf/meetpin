@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   preset: 'jest-expo',
   rootDir: '.',
   testMatch: [
@@ -10,6 +10,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/apps/mobile/src/$1',
     '^@/assets/(.*)$': '<rootDir>/apps/mobile/assets/$1',
-    '\\.css$': '<rootDir>/test/style-mock.cjs',
+    '\\.css$': '<rootDir>/test/style-mock.js',
   },
 };

@@ -1,9 +1,9 @@
-const { defineConfig, globalIgnores } = require('eslint/config');
-const expoConfig = require('eslint-config-expo/flat');
-const prettierRecommended = require('eslint-plugin-prettier/recommended');
-const globals = require('globals');
+import { defineConfig, globalIgnores } from 'eslint/config';
+import expoConfig from 'eslint-config-expo/flat.js';
+import prettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
 
-module.exports = defineConfig([
+export default defineConfig([
   globalIgnores([
     '.expo/**',
     'apps/mobile/.expo/**',
@@ -18,11 +18,10 @@ module.exports = defineConfig([
   prettierRecommended,
   {
     files: [
-      '**/*.config.{js,cjs,mjs}',
+      '**/*.config.{js,mjs}',
       '.github/**/*.js',
       'apps/mobile/scripts/**/*.js',
-      'jest.setup.js',
-      'test/**/*.cjs',
+      'test/**/*.js',
     ],
     languageOptions: {
       globals: {
