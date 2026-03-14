@@ -135,7 +135,56 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
 
       - name: Run Maestro iOS smoke test
-        run: bash ./scripts/run-maestro-ios-ci.sh
+        run: |
+          HOST_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1)
+
+          if [[ -z "${HOST_IP}" ]]; then
+            echo "Failed to determine a host IP for Metro." >&2
+            exit 1
+          fi
+
+          echo "Using Metro host ${HOST_IP}"
+
+          CI=1 \
+          EXPO_NO_TELEMETRY=1 \
+          REACT_NATIVE_PACKAGER_HOSTNAME="${HOST_IP}" \
+          pnpm --filter @meetpin/mobile exec expo start --ios > expo-ios.log 2>&1 &
+          EXPO_PID=$!
+
+          cleanup() {
+            kill "${EXPO_PID}" || true
+          }
+
+          trap cleanup EXIT
+
+          python3 - <<'PY'
+          import pathlib
+          import sys
+          import time
+
+          log_path = pathlib.Path("expo-ios.log")
+          patterns = (
+              "Opening exp://",
+              "Logs for your project will appear below.",
+          )
+
+          deadline = time.time() + 180
+
+          while time.time() < deadline:
+              text = log_path.read_text() if log_path.exists() else ""
+              if all(pattern in text for pattern in patterns):
+                  sys.exit(0)
+              time.sleep(2)
+
+          print("Expo did not finish starting within 180 seconds.", file=sys.stderr)
+          if log_path.exists():
+              print(log_path.read_text(), file=sys.stderr)
+          sys.exit(1)
+          PY
+
+          MAESTRO_CLI_NO_ANALYTICS=1 \
+          MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
+          maestro --platform ios test --debug-output ./.maestro-debug maestro/ios-expo-go-smoke.yaml
 
       - name: Upload Maestro debug output
         if: failure()
