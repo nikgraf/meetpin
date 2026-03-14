@@ -49,9 +49,8 @@ if [[ -z "${EXPO_URL}" ]]; then
 fi
 
 echo "Using Expo URL ${EXPO_URL}"
-xcrun simctl openurl booted "${EXPO_URL}"
 
-sleep 5
+sleep 10
 
 MAESTRO_CLI_NO_ANALYTICS=1 \
 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
