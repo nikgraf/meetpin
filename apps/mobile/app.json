@@ -8,6 +8,7 @@
     "scheme": "meetpin",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.nikgraf.meetpin",
       "icon": "./assets/expo.icon"
     },
     "android": {

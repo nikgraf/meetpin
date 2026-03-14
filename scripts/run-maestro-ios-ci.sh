@@ -3,66 +3,38 @@
 set -euo pipefail
 
 LOG_FILE="${LOG_FILE:-expo-ios.log}"
-OPEN_URL_PATTERN='exp://[^[:space:]]+'
 
-cleanup() {
-  if [[ -n "${EXPO_PID:-}" ]] && kill -0 "${EXPO_PID}" 2>/dev/null; then
-    kill "${EXPO_PID}" || true
-
-    local remaining=10
-    while (( remaining > 0 )) && kill -0 "${EXPO_PID}" 2>/dev/null; do
-      sleep 1
-      remaining=$((remaining - 1))
-    done
-
-    if kill -0 "${EXPO_PID}" 2>/dev/null; then
-      kill -9 "${EXPO_PID}" || true
-    fi
-
-    wait "${EXPO_PID}" || true
-  fi
-}
-
-trap cleanup EXIT
-
-CI=1 pnpm --filter @meetpin/mobile exec expo start --ios --tunnel >"${LOG_FILE}" 2>&1 &
-EXPO_PID=$!
-
-wait_for_log_pattern() {
-  local pattern="$1"
-  local timeout_seconds="$2"
-  local elapsed=0
-
-  while (( elapsed < timeout_seconds )); do
-    if grep -Eq "${pattern}" "${LOG_FILE}"; then
-      return 0
-    fi
-
-    if ! kill -0 "${EXPO_PID}" 2>/dev/null; then
-      cat "${LOG_FILE}"
-      exit 1
-    fi
-
-    sleep 5
-    elapsed=$((elapsed + 5))
-  done
-
-  cat "${LOG_FILE}"
-  return 1
-}
-
-wait_for_log_pattern "${OPEN_URL_PATTERN}" 180
-EXPO_URL=$(grep -Eo "${OPEN_URL_PATTERN}" "${LOG_FILE}" | tail -n 1)
-
-if [[ -z "${EXPO_URL}" ]]; then
-  cat "${LOG_FILE}"
+if [[ -z "${DEVICE_ID:-}" ]]; then
+  echo "DEVICE_ID must be set before running the iOS Maestro CI script." >&2
   exit 1
 fi
 
-echo "Using Expo URL ${EXPO_URL}"
+APP_ID="${APP_ID:-$(python3 - <<'PY'
+import json
+from pathlib import Path
 
-sleep 10
+config = json.loads(Path('apps/mobile/app.json').read_text())
+print(config['expo']['ios']['bundleIdentifier'])
+PY
+)}"
 
+if [[ -z "${APP_ID}" ]]; then
+  echo "APP_ID could not be determined from apps/mobile/app.json." >&2
+  exit 1
+fi
+
+echo "Building ${APP_ID} for simulator ${DEVICE_ID}"
+
+pnpm --filter @meetpin/mobile exec expo run:ios \
+  --configuration Release \
+  --no-install \
+  --no-bundler \
+  --device "${DEVICE_ID}" | tee "${LOG_FILE}"
+
+xcrun simctl launch "${DEVICE_ID}" "${APP_ID}" || true
+sleep 5
+
+APP_ID="${APP_ID}" \
 MAESTRO_CLI_NO_ANALYTICS=1 \
 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
-maestro --platform ios test --debug-output ./.maestro-debug maestro/ios-expo-go-smoke.yaml
+maestro --platform ios test --debug-output ./.maestro-debug maestro/ios-smoke.yaml

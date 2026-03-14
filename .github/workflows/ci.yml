@@ -129,6 +129,7 @@ jobs:
           )
 
           echo "Using simulator $DEVICE_ID"
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
           xcrun simctl boot "$DEVICE_ID" || true
           open -a Simulator
           xcrun simctl bootstatus "$DEVICE_ID" -b
