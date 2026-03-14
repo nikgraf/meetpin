@@ -70,6 +70,120 @@ replacements.each do |path, file_replacements|
 end
 RUBY
 
+ruby <<'RUBY'
+replacements = {
+  'node_modules/expo-router/ios/Toolbar/RouterToolbarHostView.swift' => {
+    <<~'BEFORE' => <<~'AFTER'
+              if #available(iOS 26.0, *) {
+                if let hidesSharedBackground = menu.hidesSharedBackground {
+                  item.hidesSharedBackground = hidesSharedBackground
+                }
+                if let sharesBackground = menu.sharesBackground {
+                  item.sharesBackground = sharesBackground
+                }
+              }
+    BEFORE
+    AFTER
+  },
+  'node_modules/expo-router/ios/Toolbar/RouterToolbarItemView.swift' => {
+    <<~'BEFORE' => <<~'AFTER',
+    } else if type == .searchBar {
+      guard #available(iOS 26.0, *), let controller = self.host?.findViewController() else {
+        // Check for iOS 26, should already be guarded by the JS side, so this warning will only fire if controller is nil
+        logger?.warn(
+          "[expo-router] navigationItem.searchBarPlacementBarButtonItem not available. This is most likely a bug in expo-router."
+        )
+        currentBarButtonItem = nil
+        return
+      }
+      guard let navController = controller.navigationController else {
+        currentBarButtonItem = nil
+        return
+      }
+      guard navController.isNavigationBarHidden == false else {
+        logger?.warn(
+          "[expo-router] Toolbar.SearchBarPreferredSlot should only be used when stack header is shown."
+        )
+        currentBarButtonItem = nil
+        return
+      }
+
+      item = controller.navigationItem.searchBarPlacementBarButtonItem
+    BEFORE
+    } else if type == .searchBar {
+      logger?.warn(
+        "[expo-router] Toolbar.SearchBarPreferredSlot requires a newer iOS SDK than is available in this CI build."
+      )
+      currentBarButtonItem = nil
+      return
+    AFTER
+    <<~'BEFORE' => <<~'AFTER',
+    if #available(iOS 26.0, *) {
+      item.hidesSharedBackground = hidesSharedBackground
+      item.sharesBackground = sharesBackground
+    }
+    BEFORE
+    AFTER
+    <<~'BEFORE' => <<~'AFTER'
+    if #available(iOS 26.0, *) {
+      if let badgeConfig = badgeConfiguration {
+        var badge = UIBarButtonItem.Badge.indicator()
+        if let value = badgeConfig.value {
+          badge = .string(value)
+        }
+        if let backgroundColor = badgeConfig.backgroundColor {
+          badge.backgroundColor = backgroundColor
+        }
+        if let foregroundColor = badgeConfig.color {
+          badge.foregroundColor = foregroundColor
+        }
+        if badgeConfig.fontFamily != nil || badgeConfig.fontSize != nil
+          || badgeConfig.fontWeight != nil {
+          let font = RouterFontUtils.convertTitleStyleToFont(
+            TitleStyle(
+              fontFamily: badgeConfig.fontFamily,
+              fontSize: badgeConfig.fontSize,
+              fontWeight: badgeConfig.fontWeight
+            ))
+          badge.font = font
+        }
+        item.badge = badge
+      } else {
+        item.badge = nil
+      }
+    }
+    BEFORE
+    if badgeConfiguration != nil {
+      logger?.warn(
+        "[expo-router] Toolbar badges require a newer iOS SDK than is available in this CI build."
+      )
+    }
+    AFTER
+  },
+  'node_modules/expo-router/ios/Toolbar/RouterToolbarModule.swift' => {
+    <<~'BEFORE' => <<~'AFTER'
+    case .prominent:
+      if #available(iOS 26.0, *) {
+        return .prominent
+      } else {
+        return .done
+      }
+    BEFORE
+    case .prominent:
+      return .done
+    AFTER
+  }
+}
+
+replacements.each do |path, file_replacements|
+  contents = File.read(path)
+  file_replacements.each do |before, after|
+    contents.sub!(before, after)
+  end
+  File.write(path, contents)
+end
+RUBY
+
 pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
 (
   cd "${IOS_PROJECT_DIR}"
