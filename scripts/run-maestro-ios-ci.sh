@@ -197,6 +197,9 @@ xcodebuild \
   -configuration Release \
   -destination "id=${DEVICE_ID}" \
   -derivedDataPath "${XCODE_BUILD_DIR}" \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=YES \
+  EXCLUDED_ARCHS=x86_64 \
   build | tee "${LOG_FILE}"
 
 APP_PATH="${XCODE_BUILD_DIR}/Build/Products/Release-iphonesimulator/${APP_NAME}.app"
