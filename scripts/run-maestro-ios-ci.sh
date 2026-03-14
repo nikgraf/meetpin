@@ -25,6 +25,22 @@ fi
 
 echo "Building ${APP_ID} for simulator ${DEVICE_ID}"
 
+ruby <<'RUBY'
+podspec_path = 'node_modules/expo-modules-core/ExpoModulesCore.podspec'
+podspec = File.read(podspec_path)
+
+podspec.sub!("s.swift_version  = '6.0'", "s.swift_version  = '5.10'")
+
+unless podspec.include?("'SWIFT_STRICT_CONCURRENCY' => 'minimal'")
+  podspec.sub!(
+    "'SWIFT_COMPILATION_MODE' => 'wholemodule',\n",
+    "'SWIFT_COMPILATION_MODE' => 'wholemodule',\n    'SWIFT_STRICT_CONCURRENCY' => 'minimal',\n"
+  )
+end
+
+File.write(podspec_path, podspec)
+RUBY
+
 pnpm --filter @meetpin/mobile exec expo prebuild --platform ios --no-install
 (
   cd apps/mobile/ios
