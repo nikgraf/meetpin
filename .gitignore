@@ -34,6 +34,12 @@ expo-ios.log
 *.pem
 
 # local env files
+.env
+.env.*
+!.env.example
+apps/*/.env
+apps/*/.env.*
+!apps/*/.env.example
 .env*.local
 
 # typescript
